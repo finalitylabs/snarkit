@@ -1,7 +1,7 @@
 class R1CSCircuit:
 
     def __init__(self):
-        self.symbols = {'1': 0, '-1': 1, '~out': 2}
+        self.symbols = {'1': 0, '-1': 1}
         self.gates = []
 
     def add_symbol(self, name):
@@ -80,40 +80,41 @@ if __name__ == '__main__':
     circuit = R1CSCircuit()
 
     circuit.add_symbol('x')
+    circuit.add_symbol('((x^3+x+5)/5)-x')
 
-    circuit.add_symbol('sym_1')
-    circuit.add_mult('sym_1', 'x', 'x')
+    circuit.add_symbol('x^2')
+    circuit.add_mult('x^2', 'x', 'x')
 
-    circuit.add_symbol('y')
-    circuit.add_mult('y', 'sym_1', 'x')
+    circuit.add_symbol('x^3')
+    circuit.add_mult('x^3', 'x^2', 'x')
 
-    circuit.add_symbol('sym_2')
-    circuit.add_sum('sym_2', 'y', 'x')
+    circuit.add_symbol('x^3+x')
+    circuit.add_sum('x^3+x', 'x^3', 'x')
 
-    circuit.add_symbol('sym_3')
-    circuit.add_sum('sym_3', 'sym_2', 5)
+    circuit.add_symbol('x^3+x+5')
+    circuit.add_sum('x^3+x+5', 'x^3+x', 5)
 
-    circuit.add_symbol('sym_4')
-    circuit.add_inv('sym_4', 5)
+    circuit.add_symbol('1/5')
+    circuit.add_inv('1/5', 5)
 
-    circuit.add_symbol('sym_5')
-    circuit.add_neg('sym_5', 'x')
+    circuit.add_symbol('-x')
+    circuit.add_neg('-x', 'x')
 
-    circuit.add_symbol('sym_6')
-    circuit.add_mult('sym_6', 'sym_3', 'sym_4')
+    circuit.add_symbol('(x^3+x+5)/5')
+    circuit.add_mult('(x^3+x+5)/5', 'x^3+x+5', '1/5')
 
-    circuit.add_sum('~out', 'sym_6', 'sym_5')
+    circuit.add_sum('((x^3+x+5)/5)-x', '(x^3+x+5)/5', '-x')
 
     solution = {'1':1,
                 '-1':-1,
                 'x':3,
-                'sym_1':9,
-                'y':27,
-                'sym_2':30,
-                'sym_3':35,
-                'sym_4':0.2,
-                'sym_5': -3,
-                'sym_6': 7,
-                '~out': 4}
+                'x^2':9,
+                'x^3':27,
+                'x^3+x':30,
+                'x^3+x+5':35,
+                '1/5':0.2,
+                '-x': -3,
+                '(x^3+x+5)/5': 7,
+                '((x^3+x+5)/5)-x': 4}
 
     print(circuit.check_solution(solution))
