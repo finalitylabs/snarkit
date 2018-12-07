@@ -22,6 +22,9 @@ class Vector:
             raise Exception("Vector lengths should be equal!")
         return sum(tuple(v1 * v2 for v1, v2 in zip(self.vals, v.vals)))
 
+    def __getitem__(self, index):
+        return self.vals[index]
+
     def __len__(self):
         return len(self.vals)
 
