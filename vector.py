@@ -14,8 +14,11 @@ class Vector:
     def __sub__(self, v):
         return self + (-v)
 
-    def __mul__(self, num):
-        return Vector(tuple(v * num for v in self.vals))
+    def __mul__(self, v):
+        if type(v) is Vector:
+            return Vector(tuple(v1 * v2 for v1, v2 in zip(self.vals, v.vals)))
+        else:
+            return Vector(tuple(val * v for val in self.vals))
 
     def dot(self, v):
         if len(v) != len(self):
