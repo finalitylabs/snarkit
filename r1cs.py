@@ -1,109 +1,97 @@
+from vector import Vector
+
 class R1CSCircuit:
 
-    def __init__(self):
-        self.symbols = {'1': 0, '-1': 1}
-        self.gates = []
+    def __init__(self, symbols, L, R, O):
+        self.symbols = symbols
+        self.L, self.R, self.O = L, R, O
 
-    def add_symbol(self, name):
-        if name in self.symbols:
-            raise Exception("Symbol already exists!")
-        self.symbols[name] = len(self.symbols)
-
-    def add_mult(self, result, a, b):
-        l, r, o = {},{},{}
-        if type(a) is int:
-            l[self.symbols['1']] = a
-        else:
-            l[self.symbols[a]] = 1
-        if type(b) is int:
-            r[self.symbols['1']] = b
-        else:
-            r[self.symbols[b]] = 1
-        o[self.symbols[result]] = 1
-        self.gates.append((l,r,o))
-
-    def add_inv(self, result, a):
-        l, r, o = {},{},{}
-        l[self.symbols[result]] = 1
-        o[self.symbols['1']] = 1
-        if type(a) is int:
-            r[self.symbols['1']] = a
-        else:
-            r[self.symbols[a]] = 1
-        self.gates.append((l,r,o))
-
-    def add_neg(self, result, a):
-        l, r, o = {},{},{}
-        l[self.symbols['-1']] = 1
-        r[self.symbols[result]] = 1
-        if type(a) is int:
-            o[self.symbols['1']] = a
-        else:
-            o[self.symbols[a]] = 1
-        self.gates.append((l,r,o))
-
-    def add_sum(self, result, a, b):
-        l, r, o = {},{},{}
-        if type(a) is int and type(b) is int:
-            raise Exception("Operands cannot be both int!")
-        if type(a) is int:
-            l[self.symbols['1']] = a
-        else:
-            l[self.symbols[a]] = 1
-        if type(b) is int:
-            l[self.symbols['1']] = b
-        else:
-            l[self.symbols[b]] = 1
-        r[self.symbols['1']] = 1
-        o[self.symbols[result]] = 1
-        self.gates.append((l,r,o))
-
-
-    def check_solution(self, syms):
-        def mul(sol, gate):
-            vec = [0] * len(self.symbols)
-            sm = 0
-            for k,v in gate.items():
-                sm += v * sol[k]
-            return sm
+    def verify(self, solution):
         sol = [0] * len(self.symbols)
-        for k, v in syms.items():
+        for k, v in solution.items():
             sol[self.symbols[k]] = v
-        for l, r, o in self.gates:
-            L,R,O = mul(sol, l), mul(sol, r), mul(sol, o)
-            if L * R - O != 0:
-                return False
-        return True
+        sol = Vector(sol)
+        L = Vector((v.dot(sol) for v in self.L))
+        R = Vector((v.dot(sol) for v in self.R))
+        O = Vector((v.dot(sol) for v in self.O))
+        result = L * R - O
+        return result.dot(result) == 0
+
+class CircuitGenerator:
+
+    def __init__(self):
+        self.gates = []
+        self.vars = set()
+
+    def _new_var(self, var):
+        if var in self.vars:
+            raise Exception("'{}' is already set!".format(var))
+        self.vars.add(var)
+
+    def mov(self, result, a):
+        l = {'1': a} if type(a) is int else {a: 1}
+        r = {'1': 1}
+        o = {result: 1}
+        self._new_var(result)
+        self.gates.append((l, r, o))
+
+    def mul(self, result, a, b):
+        l = {'1': a} if type(a) is int else {a: 1}
+        r = {'1': b} if type(b) is int else {b: 1}
+        o = {result: 1}
+        self._new_var(result)
+        self.gates.append((l, r, o))
+
+    def inv(self, result, a):
+        l = {result: 1}
+        r = {'1': a} if type(a) is int else {a: 1}
+        o = {'1': 1}
+        self._new_var(result)
+        self.gates.append((l, r, o))
+
+    def neg(self, result, a):
+        self.mul(result, '-1', a)
+
+    def add(self, result, a, b):
+        if type(a) is int and type(b) is int:
+            self.mov(result, a + b)
+            return
+        if a == b:
+            self.mul(result, a, 2)
+            return
+        l = {'1': a} if type(a) is int else {a: 1}
+        l.update({'1': b} if type(b) is int else {b: 1})
+        r = {'1': 1}
+        o = {result: 1}
+        self._new_var(result)
+        self.gates.append((l,r,o))
+
+    def compile(self):
+        syms = set()
+        for gate in self.gates:
+            for part in gate:
+                syms.update(part.keys())
+        syms = {sym: i for i,sym in enumerate(list(syms))}
+        LRO = [[[0] * len(syms) for i in range(len(self.gates))] for i in range(3)]
+        for i, gate in enumerate(self.gates):
+            for j in range(3):
+                for k,v in gate[j].items():
+                    LRO[j][i][syms[k]] = v
+                LRO[j][i] = Vector(LRO[j][i])
+        return R1CSCircuit(syms, LRO[0], LRO[1], LRO[2])
 
 
 if __name__ == '__main__':
-    circuit = R1CSCircuit()
+    g = CircuitGenerator()
 
-    circuit.add_symbol('x')
-    circuit.add_symbol('((x^3+x+5)/5)-x')
-
-    circuit.add_symbol('x^2')
-    circuit.add_mult('x^2', 'x', 'x')
-
-    circuit.add_symbol('x^3')
-    circuit.add_mult('x^3', 'x^2', 'x')
-
-    circuit.add_symbol('x^3+x')
-    circuit.add_sum('x^3+x', 'x^3', 'x')
-
-    circuit.add_symbol('x^3+x+5')
-    circuit.add_sum('x^3+x+5', 'x^3+x', 5)
-
-    circuit.add_symbol('1/5')
-    circuit.add_inv('1/5', 5)
-
-    circuit.add_symbol('-x')
-    circuit.add_neg('-x', 'x')
-
-    circuit.add_symbol('(x^3+x+5)/5')
-    circuit.add_mult('(x^3+x+5)/5', 'x^3+x+5', '1/5')
-
-    circuit.add_sum('((x^3+x+5)/5)-x', '(x^3+x+5)/5', '-x')
+    g.mul('x^2', 'x', 'x')
+    g.mul('x^3', 'x^2', 'x')
+    g.add('x^3+x', 'x^3', 'x')
+    g.add('x^3+x+5', 'x^3+x', 5)
+    g.inv('1/5', 5)
+    g.neg('-x', 'x')
+    g.mul('(x^3+x+5)/5', 'x^3+x+5', '1/5')
+    g.add('((x^3+x+5)/5)-x', '(x^3+x+5)/5', '-x')
 
     solution = {'1':1,
                 '-1':-1,
@@ -117,4 +105,5 @@ if __name__ == '__main__':
                 '(x^3+x+5)/5': 7,
                 '((x^3+x+5)/5)-x': 4}
 
-    print(circuit.check_solution(solution))
+    circuit = g.compile()
+    print(circuit.verify(solution))
