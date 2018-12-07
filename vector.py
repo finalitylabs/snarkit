@@ -1,7 +1,7 @@
 class Vector:
 
     def __init__(self, vals):
-        self.vals = vals
+        self.vals = tuple(vals)
 
     def __add__(self, v):
         if len(v) != len(self):
